@@ -63,7 +63,7 @@ class UI:
             scale_x = fb_width / window_width
             scale_y = fb_height / window_height
             self.io.display_framebuffer_scale = (scale_x, scale_y)
-            self.io.display_size = (fb_width, fb_height)
+            self.io.display_size = (window_width, window_height)
 
         self._setup_dark_style()
 
@@ -316,8 +316,8 @@ class UI:
             scale_y = fb_height / height
             self.io.display_framebuffer_scale = (scale_x, scale_y)
 
-        # Use framebuffer size for display size
-        self.io.display_size = fb_width, fb_height
+        # Use logical window size for display size (framebuffer scale handles HiDPI)
+        self.io.display_size = width, height
 
     def get_theme_color(self, color_id, fallback_color=(1.0, 1.0, 1.0, 1.0)):
         """Get a color from the current theme with fallback.
