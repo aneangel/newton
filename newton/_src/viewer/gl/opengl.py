@@ -997,6 +997,10 @@ class RendererGL:
         # makes scene lighting depend on camera position and strips all direct light
         # from geometry beyond the cone (see SpotlightAttenuation in shaders.py).
         self.spotlight_enabled = False
+        # None derives the fog range from the camera far plane, so fog fades geometry
+        # as it approaches the far plane rather than at a fixed distance in metres.
+        self.fog_start = None
+        self.fog_end = None
         self._shadow_extents = 10.0
         self._exposure = 1.6
 
@@ -1915,11 +1919,8 @@ class RendererGL:
             spotlight_enabled=self.spotlight_enabled,
             shadow_extents=self.shadow_extents,
             exposure=self.exposure,
-            # Fog spans the view volume rather than a fixed distance in metres, so
-            # geometry fades only as it approaches the far plane instead of becoming
-            # background-coloured well inside it.
-            fog_start=self.camera.far * 0.05,
-            fog_end=self.camera.far,
+            fog_start=self.fog_start if self.fog_start is not None else self.camera.far * 0.05,
+            fog_end=self.fog_end if self.fog_end is not None else self.camera.far,
         )
 
         with self._shape_shader:
