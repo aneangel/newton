@@ -117,7 +117,7 @@ def _ground_falloff(viewer, state) -> float:
     return float(np.max(np.maximum.accumulate(near_to_far) - near_to_far))
 
 
-class TestViewerLighting(unittest.TestCase):
+class TestViewerRendering(unittest.TestCase):
     def test_spotlight_disabled_by_default(self):
         """Verify the camera-anchored spotlight is off by default.
 
@@ -182,6 +182,37 @@ class TestViewerLighting(unittest.TestCase):
                 8.0,
                 f"a red box at {distance:.0f} m (half the far plane) is only {redness:.1f} "
                 "redder than the background, so fog has erased it",
+            )
+        finally:
+            viewer.close()
+
+    def test_sky_does_not_occlude_geometry_inside_the_far_plane(self):
+        """Verify the sky shell leaves the depth buffer alone.
+
+        The sky is a sphere of radius 0.9 * far centred on the camera. Drawing
+        it with depth writes enabled occluded everything beyond that radius and
+        cut the scene along a camera-centred sphere, which appears as a curved
+        horizon (newton-physics/newton#3977). Fog is pushed out of range here so
+        the check isolates occlusion.
+        """
+        viewer = _make_headless_viewer_gl_or_skip(self)
+        try:
+            far = viewer.camera.far
+            distance = far * 0.95
+            model = _make_distant_box_model(distance)
+            viewer.set_model(model)
+            viewer.renderer.draw_sky = True
+            # move fog far beyond the scene so only occlusion can hide the box
+            viewer.renderer.fog_start = far * 10.0
+            viewer.renderer.fog_end = far * 20.0
+
+            redness = _centre_redness(viewer, model.state(), distance)
+
+            self.assertGreater(
+                redness,
+                8.0,
+                f"a box at {distance:.0f} m is hidden behind the sky shell at "
+                f"{far * 0.9:.0f} m even though the far plane is {far:.0f} m",
             )
         finally:
             viewer.close()

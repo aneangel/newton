@@ -2057,9 +2057,15 @@ class RendererGL:
             up_axis=self.camera.up_axis,
         )
 
+        # The sky shell is only 0.9 * far across and is centred on the camera, so
+        # letting it write depth would occlude anything further away than that,
+        # cutting the scene along a camera-centred sphere. It is a background, so
+        # it fills colour only and leaves the depth buffer cleared.
+        gl.glDepthMask(gl.GL_FALSE)
         gl.glBindVertexArray(self._sky_vao)
         gl.glDrawElements(gl.GL_TRIANGLES, self._sky_tri_count, gl.GL_UNSIGNED_INT, None)
         gl.glBindVertexArray(0)
+        gl.glDepthMask(gl.GL_TRUE)
 
         check_gl_error()
 
