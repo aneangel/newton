@@ -199,7 +199,7 @@ class TestViewerGLSetModelState(unittest.TestCase):
 
             viewer.set_model(model_b)
 
-            self.assertAlmostEqual(viewer.camera.near, 0.01)
+            self.assertAlmostEqual(viewer.camera.near, 0.05)
             self.assertAlmostEqual(viewer.camera.far, 1000.0)
             self.assertAlmostEqual(viewer.camera.fov, 45.0)
             _assert_vec_close(self, viewer.camera.pos, (0.0, 2.0, 10.0))

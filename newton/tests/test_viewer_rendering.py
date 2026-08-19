@@ -78,6 +78,18 @@ def _make_distant_box_model(distance: float):
     return builder.finalize()
 
 
+def _make_huge_ground_model(size: float):
+    """A kilometre-scale ground mesh, as Isaac Lab's terrain importer builds."""
+    builder = newton.ModelBuilder()
+    for i in range(4):
+        body = builder.add_body(xform=wp.transform(wp.vec3(i * 2.0 - 3.0, 6.0, 1.0)), mass=0.0)
+        builder.add_shape_box(body, hx=0.4, hy=0.4, hz=1.0, color=(1.0, 1.0, 1.0))
+    mesh = newton.Mesh.create_plane(size, size, compute_inertia=False)
+    ground = builder.add_body(xform=wp.transform(wp.vec3(-8500.0, 8500.0, 0.0)), mass=0.0)
+    builder.add_shape_mesh(ground, mesh=mesh, color=(0.35, 0.35, 0.40))
+    return builder.finalize()
+
+
 def _centre_redness(viewer, state, distance: float) -> float:
     """Return how red the frame centre is, viewing the box head-on."""
     viewer.camera.pos = viewer.camera._as_vec3((0.0, 0.0, 3.0))
@@ -213,6 +225,46 @@ class TestViewerRendering(unittest.TestCase):
                 8.0,
                 f"a box at {distance:.0f} m is hidden behind the sky shell at "
                 f"{far * 0.9:.0f} m even though the far plane is {far:.0f} m",
+            )
+        finally:
+            viewer.close()
+
+    def test_kilometre_scale_ground_still_rasterises(self):
+        """Verify a very large ground mesh survives depth quantisation.
+
+        Isaac Lab's TerrainImporter spawns a 2000 km ground plane. With the old
+        near=0.01 default the near/far ratio was 100000:1 and that mesh stopped
+        rasterising altogether, so the scene lost its ground and objects standing
+        on it were occluded incorrectly (newton-physics/newton#3977).
+        """
+        viewer = _make_headless_viewer_gl_or_skip(self)
+        try:
+            self.assertGreaterEqual(
+                viewer.camera.near,
+                0.02,
+                "near plane is small enough to collapse depth precision on large scenes",
+            )
+
+            model = _make_huge_ground_model(2.0e6)
+            viewer.set_model(model)
+            state = model.state()
+            viewer.camera.pos = viewer.camera._as_vec3((0.0, -14.0, 3.0))
+            viewer.camera.look_at((0.0, 6.0, 1.0))
+            for _ in range(2):
+                viewer.begin_frame(0.0)
+                viewer.log_state(state)
+                viewer.end_frame()
+
+            img = viewer.get_frame(render_ui=False).numpy().astype(np.int16)
+            # the ground fills the lower half of the frame when it rasterises
+            height, width = img.shape[:2]
+            lower = img[int(height * 0.75) :, int(width * 0.2) : int(width * 0.8)]
+            lit = float(lower.astype(np.float32).mean())
+
+            self.assertGreater(
+                lit,
+                80.0,
+                f"lower frame mean luminance is {lit:.1f}; the ground mesh did not rasterise",
             )
         finally:
             viewer.close()

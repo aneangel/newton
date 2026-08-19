@@ -15,7 +15,11 @@ class Camera:
     def __init__(
         self,
         fov: float = 45.0,
-        near: float = 0.01,
+        # near matches MIN_PIVOT_DISTANCE: orbiting can never bring the camera closer
+        # than that, so a smaller near buys no visibility and only costs depth
+        # precision. At 0.01 the 100000:1 ratio breaks down on large scenes and
+        # kilometre-scale ground planes stop rasterising entirely.
+        near: float = 0.05,
         far: float = 1000.0,
         width: int = 1280,
         height: int = 720,
