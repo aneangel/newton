@@ -1915,6 +1915,11 @@ class RendererGL:
             spotlight_enabled=self.spotlight_enabled,
             shadow_extents=self.shadow_extents,
             exposure=self.exposure,
+            # Fog spans the view volume rather than a fixed distance in metres, so
+            # geometry fades only as it approaches the far plane instead of becoming
+            # background-coloured well inside it.
+            fog_start=self.camera.far * 0.05,
+            fog_end=self.camera.far,
         )
 
         with self._shape_shader:

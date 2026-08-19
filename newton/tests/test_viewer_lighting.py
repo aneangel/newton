@@ -5,6 +5,7 @@ import sys
 import unittest
 
 import numpy as np
+import warp as wp
 
 import newton
 import newton.viewer
@@ -68,6 +69,31 @@ def _make_ground_model():
     return builder.finalize()
 
 
+def _make_distant_box_model(distance: float):
+    """A red box *distance* metres from the origin, sized to a constant view angle."""
+    builder = newton.ModelBuilder()
+    half_extent = 0.02 * distance
+    body = builder.add_body(xform=wp.transform(wp.vec3(0.0, distance, 3.0)), mass=0.0)
+    builder.add_shape_box(body, hx=half_extent, hy=half_extent, hz=half_extent, color=(1.0, 0.0, 0.0))
+    return builder.finalize()
+
+
+def _centre_redness(viewer, state, distance: float) -> float:
+    """Return how red the frame centre is, viewing the box head-on."""
+    viewer.camera.pos = viewer.camera._as_vec3((0.0, 0.0, 3.0))
+    viewer.camera.look_at((0.0, distance, 3.0))
+    for _ in range(2):
+        viewer.begin_frame(0.0)
+        viewer.log_state(state)
+        viewer.end_frame()
+
+    img = viewer.get_frame(render_ui=False).numpy()
+    height, width = img.shape[:2]
+    centre = img[int(height * 0.47) : int(height * 0.53), int(width * 0.47) : int(width * 0.53)]
+    centre = centre.reshape(-1, 3).mean(axis=0)
+    return float(centre[0] - max(centre[1], centre[2]))
+
+
 def _ground_falloff(viewer, state) -> float:
     """Return how much darker the far ground is than the nearest ground.
 
@@ -91,7 +117,7 @@ def _ground_falloff(viewer, state) -> float:
     return float(np.max(np.maximum.accumulate(near_to_far) - near_to_far))
 
 
-class TestViewerSpotlight(unittest.TestCase):
+class TestViewerLighting(unittest.TestCase):
     def test_spotlight_disabled_by_default(self):
         """Verify the camera-anchored spotlight is off by default.
 
@@ -133,6 +159,30 @@ class TestViewerSpotlight(unittest.TestCase):
         try:
             viewer.renderer.spotlight_enabled = True
             self.assertTrue(viewer.renderer.spotlight_enabled)
+        finally:
+            viewer.close()
+
+    def test_geometry_stays_visible_well_inside_the_far_plane(self):
+        """Verify distance fog does not paint shapes the background colour.
+
+        Fog used to run from a hardcoded 20 m to 200 m while the far plane sat
+        at 1000 m, so anything past 200 m was mixed to exactly ``sky_lower`` and
+        became indistinguishable from the sky (newton-physics/newton#3977).
+        """
+        viewer = _make_headless_viewer_gl_or_skip(self)
+        try:
+            distance = viewer.camera.far * 0.5
+            model = _make_distant_box_model(distance)
+            viewer.set_model(model)
+
+            redness = _centre_redness(viewer, model.state(), distance)
+
+            self.assertGreater(
+                redness,
+                8.0,
+                f"a red box at {distance:.0f} m (half the far plane) is only {redness:.1f} "
+                "redder than the background, so fog has erased it",
+            )
         finally:
             viewer.close()
 

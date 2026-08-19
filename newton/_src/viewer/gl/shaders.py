@@ -109,6 +109,8 @@ uniform float env_intensity;
 uniform sampler2D albedo_map;
 
 uniform vec3 fogColor;
+uniform float fog_start;
+uniform float fog_end;
 uniform int up_axis;
 
 uniform mat4 light_space_matrix;
@@ -368,9 +370,7 @@ void main()
 
     // fog
     float dist = length(FragPos - view_pos);
-    float fog_start = 20.0;
-    float fog_end   = 200.0;
-    float fog_factor = clamp((dist - fog_start) / (fog_end - fog_start), 0.0, 1.0);
+    float fog_factor = clamp((dist - fog_start) / max(fog_end - fog_start, 1.0e-4), 0.0, 1.0);
     color = mix(color, pow(fogColor, vec3(2.2)), fog_factor);
 
     // ACES filmic tone mapping
@@ -543,6 +543,8 @@ class ShaderShape(ShaderGL):
             self.loc_spotlight_enabled = self._get_uniform_location("spotlight_enabled")
             self.loc_shadow_extents = self._get_uniform_location("shadow_extents")
             self.loc_exposure = self._get_uniform_location("exposure")
+            self.loc_fog_start = self._get_uniform_location("fog_start")
+            self.loc_fog_end = self._get_uniform_location("fog_end")
 
     def update(
         self,
@@ -566,6 +568,8 @@ class ShaderShape(ShaderGL):
         spotlight_enabled: bool = False,
         shadow_extents: float = 10.0,
         exposure: float = 1.6,
+        fog_start: float = 50.0,
+        fog_end: float = 1000.0,
     ):
         """Update all shader uniforms."""
         with self:
@@ -588,6 +592,8 @@ class ShaderShape(ShaderGL):
 
             # Fog and rendering options
             self._gl.glUniform3f(self.loc_fog_color, *fog_color)
+            self._gl.glUniform1f(self.loc_fog_start, fog_start)
+            self._gl.glUniform1f(self.loc_fog_end, fog_end)
             self._gl.glUniform1i(self.loc_up_axis, up_axis)
 
             # Shadows
