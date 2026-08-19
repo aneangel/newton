@@ -993,7 +993,10 @@ class RendererGL:
         self._shadow_radius = 3.0
         self._diffuse_scale = 1.0
         self._specular_scale = 1.0
-        self.spotlight_enabled = True
+        # Off by default: the spotlight cone is anchored to the camera, so enabling it
+        # makes scene lighting depend on camera position and strips all direct light
+        # from geometry beyond the cone (see SpotlightAttenuation in shaders.py).
+        self.spotlight_enabled = False
         self._shadow_extents = 10.0
         self._exposure = 1.6
 

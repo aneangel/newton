@@ -563,7 +563,7 @@ class ShaderShape(ShaderGL):
         shadow_radius: float = 3.0,
         diffuse_scale: float = 1.0,
         specular_scale: float = 1.0,
-        spotlight_enabled: bool = True,
+        spotlight_enabled: bool = False,
         shadow_extents: float = 10.0,
         exposure: float = 1.6,
     ):
